@@ -1,17 +1,19 @@
 # Ditto
 
-[![License](https://img.shields.io/github/license/yoheinakajima/ditto)](LICENSE)
+[![License](https://img.shields.io/github/license/yarlson/ditto)](LICENSE)
 
-**Ditto** - *the simplest self-building coding agent*.
+**Ditto** - _the simplest self-building coding agent_.
 
-Ditto is a user-friendly tool that allows you to generate a multi-file Flask application from simple natural language descriptions using a no-code interface. By leveraging a simple LLM loop with a few tools, Ditto automates the coding process, (occasionally) turning your ideas into functional web applications (or at least trying and getting close).
+Ditto is a user-friendly tool that allows you to generate a multi-file Go command-line application using Go and Cobra from simple natural language descriptions. By leveraging a simple LLM loop with a few tools, Ditto automates the coding process, (occasionally) turning your ideas into functional command-line applications (or at least trying and getting close).
 
 ## Features
 
-- **Simple Natural Language Input**: Just describe the application you want to build in plain English.
-- **Automated Code Generation**: Generates routes, templates, and static files based on your description.
+- **Simple Natural Language Input**: Just describe the command-line application you want to build in plain English.
+- **Automated Code Generation**: Generates commands, subcommands, and necessary Go source files based on your description.
 - **Self-Building Agent**: Automatically plans and constructs the application without the need for manual coding.
-- **Modular Structure**: Organizes code into a clean, modular structure with separate directories for templates, static files, and routes.
+- **Modular Structure**: Organizes code into a clean, modular structure with separate directories for commands and packages.
+- **Isolated Project Directory**: All generated files are contained within a `go_cli_project` subfolder to keep your workspace organized.
+- **Entrypoint Creation**: Automatically creates an entrypoint `main.go` file for your Go application.
 
 ## Getting Started
 
@@ -19,13 +21,14 @@ Ditto is a user-friendly tool that allows you to generate a multi-file Flask app
 
 - Python 3.7 or higher
 - `pip` package manager
+- Go 1.16 or higher
 
 ### Installation
 
 1. **Clone the Repository**
 
    ```bash
-   git clone https://github.com/yoheinakajima/ditto.git
+   git clone https://github.com/yarlson/ditto.git
    cd ditto
    ```
 
@@ -106,7 +109,7 @@ python main.py
 
 3. **Describe Your Application**
 
-   On the home page, you'll find a form where you can describe the Flask application you want to create.
+   On the home page, you'll find a form where you can describe the Go CLI application you want to create.
 
 4. **Monitor Progress**
 
@@ -114,16 +117,39 @@ python main.py
 
 5. **View the Generated Application**
 
-   Once the process is complete, you can rerun the Flask app to interact with your newly generated Flask application.
+   Once the process is complete, your Go CLI application will be generated inside the `go_cli_project` directory, keeping your workspace organized.
 
-```bash
-python main.py
-```
+6. **Compile and Run Your Application**
 
+   Navigate to the `go_cli_project` directory:
+
+   ```bash
+   cd go_cli_project
+   ```
+
+   Build the application:
+
+   ```bash
+   go build -o myapp
+   ```
+
+   Replace `myapp` with the desired name for your executable.
+
+   Run the application:
+
+   ```bash
+   ./myapp
+   ```
+
+   Or, if you prefer to run it directly without building:
+
+   ```bash
+   go run main.go
+   ```
 
 ## Contribution
 
-This is a quick exploration, so I have no plans to work on this further. Contributions are welcome, especially if they are awesome, but ping me on X/Twitter because I don't check PRs often. I'm basically going to try to bake this into the new [BabyAGI framework](https://github.com/yoheinakajima/babyagi), but give it the ability to store and save functions from the database. If this sounds like a fun challenge and you get it working, definitely let me know :)
+This is a quick exploration, so I have no plans to work on this further. Contributions are welcome, especially if they are awesome, but ping me on X/Twitter because I don't check PRs often. I'm basically going to try to bake this into the new [BabyAGI framework](https://github.com/yarlson/babyagi), but give it the ability to store and save functions from the database. If this sounds like a fun challenge and you get it working, definitely let me know :)
 
 ## License
 
