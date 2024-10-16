@@ -1,13 +1,9 @@
 import os
-import sys
 import json
-import importlib
 import traceback
 from flask import (
     Flask,
-    Blueprint,
     request,
-    send_from_directory,
     render_template_string,
     jsonify,
 )
@@ -25,13 +21,13 @@ MODEL_NAME = os.environ.get(
 # Initialize Flask app
 app = Flask(__name__)
 
-LOG_FILE = "flask_app_builder_log.json"
+LOG_FILE = "go_cli_builder_log.json"
 
 # Directory paths
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-TEMPLATES_DIR = os.path.join(BASE_DIR, "templates")
-STATIC_DIR = os.path.join(BASE_DIR, "static")
-ROUTES_DIR = os.path.join(BASE_DIR, "routes")
+PROJECT_DIR = os.path.join(BASE_DIR, "go_cli_project")  # New project directory
+CMD_DIR = os.path.join(PROJECT_DIR, "cmd")
+PKG_DIR = os.path.join(PROJECT_DIR, "pkg")
 
 # Initialize progress tracking
 progress = {
@@ -43,76 +39,54 @@ progress = {
 }
 
 
-# Ensure directories exist and create __init__.py in routes
+# Ensure directories exist
 def create_directory(path):
-    if not os.path.exists(path):
-        os.makedirs(path)
-        # If creating the routes directory, add __init__.py
-        if path == ROUTES_DIR:
-            create_file(os.path.join(ROUTES_DIR, "__init__.py"), "")
-        return f"Created directory: {path}"
-    return f"Directory already exists: {path}"
+    # Ensure that the path is within the PROJECT_DIR
+    full_path = os.path.join(PROJECT_DIR, path)
+    if not os.path.exists(full_path):
+        os.makedirs(full_path)
+        return f"Created directory: {full_path}"
+    return f"Directory already exists: {full_path}"
 
 
 def create_file(path, content):
+    # Ensure that the path is within the PROJECT_DIR
+    full_path = os.path.join(PROJECT_DIR, path)
+    directory = os.path.dirname(full_path)
+    if not os.path.exists(directory):
+        os.makedirs(directory)
     try:
-        with open(path, "x") as f:
+        with open(full_path, "x") as f:
             f.write(content)
-        return f"Created file: {path}"
+        return f"Created file: {full_path}"
     except FileExistsError:
-        with open(path, "w") as f:
+        with open(full_path, "w") as f:
             f.write(content)
-        return f"Updated file: {path}"
+        return f"Updated file: {full_path}"
     except Exception as e:
-        return f"Error creating/updating file {path}: {e}"
+        return f"Error creating/updating file {full_path}: {e}"
 
 
 def update_file(path, content):
+    # Ensure that the path is within the PROJECT_DIR
+    full_path = os.path.join(PROJECT_DIR, path)
     try:
-        with open(path, "w") as f:
+        with open(full_path, "w") as f:
             f.write(content)
-        return f"Updated file: {path}"
+        return f"Updated file: {full_path}"
     except Exception as e:
-        return f"Error updating file {path}: {e}"
+        return f"Error updating file {full_path}: {e}"
 
 
 def fetch_code(file_path):
+    # Ensure that the path is within the PROJECT_DIR
+    full_path = os.path.join(PROJECT_DIR, file_path)
     try:
-        with open(file_path, "r") as f:
+        with open(full_path, "r") as f:
             code = f.read()
         return code
     except Exception as e:
-        return f"Error fetching code from {file_path}: {e}"
-
-
-def load_routes():
-    try:
-        if BASE_DIR not in sys.path:
-            sys.path.append(BASE_DIR)
-        for filename in os.listdir(ROUTES_DIR):
-            if filename.endswith(".py") and filename != "__init__.py":
-                module_name = filename[:-3]
-                module_path = f"routes.{module_name}"
-                try:
-                    if module_path in sys.modules:
-                        importlib.reload(sys.modules[module_path])
-                    else:
-                        importlib.import_module(module_path)
-                    module = sys.modules.get(module_path)
-                    if module:
-                        # Find all blueprint objects in the module
-                        for attr_name in dir(module):
-                            attr = getattr(module, attr_name)
-                            if isinstance(attr, Blueprint):
-                                app.register_blueprint(attr)
-                except Exception as e:
-                    print(f"Error importing module {module_path}: {e}")
-                    continue
-        print("Routes loaded successfully.")
-        return "Routes loaded successfully."
-    except Exception as e:
-        print(f"Error in load_routes: {e}")
-        return f"Error loading routes: {e}"
+        return f"Error fetching code from {full_path}: {e}"
 
 
 def task_completed():
@@ -122,12 +96,8 @@ def task_completed():
 
 
 # Initialize necessary directories
-create_directory(TEMPLATES_DIR)
-create_directory(STATIC_DIR)
-create_directory(ROUTES_DIR)  # This will also create __init__.py in routes
-
-# Load routes once at initiation
-load_routes()
+create_directory("cmd")
+create_directory("pkg")
 
 
 # Function to log history to file
@@ -136,56 +106,54 @@ def log_to_file(history_dict):
         with open(LOG_FILE, "w") as log_file:
             json.dump(history_dict, log_file, indent=4)
     except Exception as e:
-        pass  # Silent fail
+        print(
+            f"Error logging to file: {e}"
+        )  # Log the error instead of silently failing
 
 
-# Default route to serve generated index.html or render a form
+# Default route to render a form
 @app.route("/", methods=["GET", "POST"])
 def home():
-    index_file = os.path.join(TEMPLATES_DIR, "index.html")
-    if os.path.exists(index_file):
-        return send_from_directory(TEMPLATES_DIR, "index.html")
-    else:
-        if request.method == "POST":
-            user_input = request.form.get("user_input")
-            # Run the main loop with the user's input in a separate thread
-            progress["status"] = "running"
-            progress["iteration"] = 0
-            progress["output"] = ""
-            progress["completed"] = False
-            thread = Thread(target=run_main_loop, args=(user_input,))
-            thread.start()
-            return render_template_string(
-                """
-                <h1>Progress</h1>
-                <pre id="progress">{{ progress_output }}</pre>
-                <script>
-                    setInterval(function() {
-                        fetch('/progress')
-                        .then(response => response.json())
-                        .then(data => {
-                            document.getElementById('progress').innerHTML = data.output;
-                            if (data.completed) {
-                                document.getElementById('refresh-btn').style.display = 'block';
-                            }
-                        });
-                    }, 2000);
-                </script>
-                <button id="refresh-btn" style="display:none;" onclick="location.reload();">Refresh Page</button>
-            """,
-                progress_output=progress["output"],
-            )
-        else:
-            return render_template_string(
-                """
-                <h1>Flask App Builder</h1>
-                <form method="post">
-                    <label for="user_input">Describe the Flask app you want to create:</label><br>
-                    <input type="text" id="user_input" name="user_input"><br><br>
-                    <input type="submit" value="Submit">
-                </form>
+    if request.method == "POST":
+        user_input = request.form.get("user_input")
+        # Run the main loop with the user's input in a separate thread
+        progress["status"] = "running"
+        progress["iteration"] = 0
+        progress["output"] = ""
+        progress["completed"] = False
+        thread = Thread(target=run_main_loop, args=(user_input,))
+        thread.start()
+        return render_template_string(
             """
-            )
+            <h1>Progress</h1>
+            <pre id="progress">{{ progress_output }}</pre>
+            <script>
+                setInterval(function() {
+                    fetch('/progress')
+                    .then(response => response.json())
+                    .then(data => {
+                        document.getElementById('progress').innerHTML = data.output;
+                        if (data.completed) {
+                            document.getElementById('refresh-btn').style.display = 'block';
+                        }
+                    });
+                }, 2000);
+            </script>
+            <button id="refresh-btn" style="display:none;" onclick="location.reload();">Refresh Page</button>
+        """,
+            progress_output=progress["output"],
+        )
+    else:
+        return render_template_string(
+            """
+            <h1>Go CLI Builder</h1>
+            <form method="post">
+                <label for="user_input">Describe the Go CLI application you want to create:</label><br>
+                <input type="text" id="user_input" name="user_input"><br><br>
+                <input type="submit" value="Submit">
+            </form>
+        """
+        )
 
 
 # Route to provide progress updates
@@ -310,29 +278,31 @@ def run_main_loop(user_input):
         {
             "role": "system",
             "content": (
-                "You are an expert Flask developer tasked with building a complete, production-ready Flask application based on the user's description. "
-                "Before coding, carefully plan out all the files, routes, templates, and static assets needed. "
+                "You are an expert Go developer experienced in building command-line applications using the Cobra framework. "
+                "You are tasked with building a complete, production-ready Go CLI application based on the user's description. "
+                "Before coding, carefully plan out all the commands, subcommands, flags, and necessary packages. "
                 "Follow these steps:\n"
                 "1. **Understand the Requirements**: Analyze the user's input to fully understand the application's functionality and features.\n"
-                "2. **Plan the Application Structure**: List all the routes, templates, and static files that need to be created. Consider how they interact.\n"
+                "2. **Plan the Application Structure**: List all the commands, subcommands, flags, and packages that need to be created. Consider how they interact.\n"
                 "3. **Implement Step by Step**: For each component, use the provided tools to create directories, files, and write code. Ensure each step is thoroughly completed before moving on.\n"
                 "4. **Review and Refine**: Use `fetch_code` to review the code you've written. Update files if necessary using `update_file`.\n"
-                "5. **Ensure Completeness**: Do not leave any placeholders or incomplete code. All functions, routes, and templates must be fully implemented and ready for production.\n"
-                "6. **Do Not Modify `main.py`**: Focus only on the `templates/`, `static/`, and `routes/` directories.\n"
-                "7. **Finalize**: Once everything is complete and thoroughly tested, call `task_completed()` to finish.\n\n"
+                "5. **Ensure Completeness**: Do not leave any placeholders or incomplete code. All commands, subcommands, and functionalities must be fully implemented and ready for production.\n"
+                "6. **Create Entry Point `main.go`**: Make sure to create an entry point `main.go` file in the project directory.\n"
+                "7. **Do Not Modify `main.py`**: Focus only on creating Go source files within the appropriate directories.\n"
+                "8. **Finalize**: Once everything is complete and thoroughly tested, call `task_completed()` to finish.\n\n"
                 "Constraints and Notes:\n"
-                "- The application files must be structured within the predefined directories: `templates/`, `static/`, and `routes/`.\n"
-                "- Routes should be modular and placed inside the `routes/` directory as separate Python files.\n"
-                "- The `index.html` served from the `templates/` directory is the entry point of the app. Update it appropriately if additional templates are created.\n"
-                "- Do not use placeholders like 'Content goes here'. All code should be complete and functional.\n"
+                "- The application files must be structured within a project subfolder, following Go conventions, such as `cmd/` and `pkg/`.\n"
+                "- All file paths are relative to the project directory.\n"
+                "- Commands should be modular and placed inside the `cmd/` directory.\n"
+                "- Do not use placeholders like 'TODO'. All code should be complete and functional.\n"
                 "- Do not ask the user for additional input; infer any necessary details to complete the application.\n"
-                "- Ensure all routes are properly linked and that templates include necessary CSS and JS files.\n"
+                "- Ensure all commands and subcommands are properly linked and that flags and options are correctly implemented.\n"
                 "- Handle any errors internally and attempt to resolve them before proceeding.\n\n"
                 "Available Tools:\n"
-                "- `create_directory(path)`: Create a new directory.\n"
-                "- `create_file(path, content)`: Create or overwrite a file with content.\n"
-                "- `update_file(path, content)`: Update an existing file with new content.\n"
-                "- `fetch_code(file_path)`: Retrieve the code from a file for review.\n"
+                "- `create_directory(path)`: Create a new directory relative to the project directory.\n"
+                "- `create_file(path, content)`: Create or overwrite a file with content relative to the project directory.\n"
+                "- `update_file(path, content)`: Update an existing file with new content relative to the project directory.\n"
+                "- `fetch_code(file_path)`: Retrieve the code from a file for review relative to the project directory.\n"
                 "- `task_completed()`: Call this when the application is fully built and ready.\n\n"
                 "Remember to think carefully at each step, ensuring the application is complete, functional, and meets the user's requirements."
             ),

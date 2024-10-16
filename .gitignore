@@ -1,2 +1,4 @@
 .idea
 .venv
+/go_cli_builder_log.json
+/go_cli_project/
