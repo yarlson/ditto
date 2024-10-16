@@ -1,8 +1,10 @@
 # Ditto
 
+This is a fork of the original Ditto repository by [yoheinakajima](https://github.com/yoheinakajima/ditto).
+
 [![License](https://img.shields.io/github/license/yarlson/ditto)](LICENSE)
 
-**Ditto** - _the simplest self-building coding agent_.
+**Ditto** - *the simplest self-building coding agent*.
 
 Ditto is a user-friendly tool that allows you to generate a multi-file Go command-line application using Go and Cobra from simple natural language descriptions. By leveraging a simple LLM loop with a few tools, Ditto automates the coding process, (occasionally) turning your ideas into functional command-line applications (or at least trying and getting close).
 
@@ -42,7 +44,7 @@ Ditto is a user-friendly tool that allows you to generate a multi-file Go comman
 3. **Install Dependencies**
 
    ```bash
-   pip install litellm
+   pip install -r requirements.txt
    ```
 
 ### Setting the `OPENAI_API_KEY`
@@ -149,7 +151,7 @@ python main.py
 
 ## Contribution
 
-This is a quick exploration, so I have no plans to work on this further. Contributions are welcome, especially if they are awesome, but ping me on X/Twitter because I don't check PRs often. I'm basically going to try to bake this into the new [BabyAGI framework](https://github.com/yarlson/babyagi), but give it the ability to store and save functions from the database. If this sounds like a fun challenge and you get it working, definitely let me know :)
+Contributions are welcome! If you have suggestions for improvements, new features, or find any bugs, please open an issue or submit a pull request. For major changes, please open an issue first to discuss what you would like to change.
 
 ## License
 
